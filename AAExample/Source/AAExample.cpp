@@ -16,6 +16,7 @@ static bool GameOver;
 HANDLE ghMutex;
 int workers;
 int gateways;
+int unit_zealot;
 vector<UnitType> ger_producao;
 set< pair<int, UnitType> > lista_producao;
 int probe;
@@ -41,6 +42,7 @@ void AAExample::onStart()
 	dragoon = 0;
 	gateway = 0;
 	pylon = 0;
+	unit_zealot = 0;
 	mode = ZEALOT_RUSH;
 	lastChecked = 0;
 	vouConstruir = false;
@@ -155,9 +157,10 @@ void AAExample::onUnitCreate(BWAPI::Unit unit)
 	if (unit->getType().isWorker()) // or  == BWAPI::UnitTypes::Terran_SCV if terran
 	{
 		CreateThread(NULL, 0, thisShouldBeAClassButImTooLazyToDoIt_Worker, (LPVOID)unit, 0, NULL);
-		workers++;
-		probe--;
-		Broodwar->sendText("Trabalhadores: %d", workers);
+		//workers++;
+		//Broodwar->sendText("Probe = %d", probe);
+		//probe--;
+		//Broodwar->sendText("Trabalhadores: %d , probe = %d", workers, probe);
 	}
 	// You can do a direct comparison like  == BWAPI::UnitTypes::Terran_Command_Center too.
 	else if (unit->getType().isResourceDepot())
@@ -183,7 +186,10 @@ void AAExample::onUnitCreate(BWAPI::Unit unit)
 		Broodwar->sendText("Gateways: %d", gateways);
 	}
 	else if (unit->getType() == UnitTypes::Protoss_Zealot)
+	{
+		unit_zealot++;
 		zealot--;
+	}
 	else if (unit->getType() == UnitTypes::Protoss_Dragoon)
 		dragoon--;
 }
@@ -230,6 +236,7 @@ DWORD WINAPI AAExample::Produtor(LPVOID param)
 {
 
 	DWORD dwWaitResult;
+	bool entrou = false;
 
 	while (true){
 
@@ -263,13 +270,26 @@ DWORD WINAPI AAExample::Produtor(LPVOID param)
 					{
 						if (ref_base->isIdle())
 						{
+							entrou = true;
 							Broodwar->sendText("Probe - Minerio = %d", minerioAtual);
 							minerioAtual -= (*it).second.mineralPrice();
 							gasAtual -= (*it).second.gasPrice();
 							ref_base->train((*it).second);
-							//++it;
-							it = lista_producao.erase(it);
+							////++it;
+							//it = lista_producao.erase(it);
+							//break;
+							Error lastErr = Broodwar->getLastError();
+							if (lastErr == Errors::None)
+							{
+								it = lista_producao.erase(it);
+							}
+							break;
 						}
+						if (!entrou)
+						{
+							++it;
+						}
+						entrou = false;
 					}
 					else if (((*it).second == UnitTypes::Protoss_Zealot || (*it).second == UnitTypes::Protoss_Dragoon) && !vouConstruir)
 					{
@@ -277,16 +297,28 @@ DWORD WINAPI AAExample::Produtor(LPVOID param)
 						{
 							if (ref_gateways[i]->isIdle())
 							{
+								entrou = true;
 								minerioAtual -= (*it).second.mineralPrice();
 								gasAtual -= (*it).second.gasPrice();
 								ref_gateways[i]->train((*it).second);
-								//++it;
-								it = lista_producao.erase(it);
+								////++it;
+								//it = lista_producao.erase(it);
+								Error lastErr = Broodwar->getLastError();
+								if (lastErr == Errors::None)
+								{
+									it = lista_producao.erase(it);
+								}
 								break;
 							}
 						}
+						if (!entrou)
+						{
+							++it;
+						}
+						entrou = false;
 					}
-					else
+					//else
+					else if ((*it).second == UnitTypes::Protoss_Assimilator || (*it).second == UnitTypes::Protoss_Gateway || (*it).second == UnitTypes::Protoss_Pylon || (*it).second == UnitTypes::Protoss_Cybernetics_Core)
 					{
 						//Broodwar->sendText("Tamanho da lista = %d", lista_producao.size());
 						for (std::list<Unit>::const_iterator i = Broodwar->self()->getUnits().begin(); i != Broodwar->self()->getUnits().end(); i++)
@@ -294,6 +326,7 @@ DWORD WINAPI AAExample::Produtor(LPVOID param)
 							//if ((*i)->getType() == (*it).second.whatBuilds().first)
 							if ((*i)->getType().isWorker() == true)
 							{
+								entrou = true;
 								//Broodwar->sendText("Pylon - Minerio = %d", minerioAtual);
 								minerioAtual -= (*it).second.mineralPrice();
 								gasAtual -= (*it).second.gasPrice();
@@ -307,17 +340,28 @@ DWORD WINAPI AAExample::Produtor(LPVOID param)
 								{
 									vouConstruir = true;
 									it = lista_producao.erase(it);
+									break;
 								}
 
 								//}
-								break;
+								//break;
 							}
 						}
+						if (!entrou)
+						{
+							++it;
+						}
+						entrou = false;
+						break;
 					}
 				}
 				else
 				{
-					++it;
+					if ((*it).second == UnitTypes::Protoss_Zealot && unit_zealot % 2 == 1)
+					{
+						++it;
+						continue;
+					}
 					break;
 				}
 
@@ -410,12 +454,13 @@ DWORD WINAPI AAExample::Gerenciador_Producao(LPVOID param)
 
 			if ((workers < 9 && probe == 0) || probe == 0)
 			{
-				//Broodwar->sendText("Constroi um brodinho!");
+				Broodwar->sendText("Constroi um brodinho!");
 				lista_producao.insert(make_pair(6, UnitTypes::Protoss_Probe));
 				probe++;
 			}
 			else if (mode == ZEALOT_RUSH && zealot < gateways)
 			{
+				Broodwar->sendText("workers = %d , probe = %d , tam = %d", workers, probe, lista_producao.size());
 				lista_producao.insert(make_pair(4, UnitTypes::Protoss_Zealot));
 				zealot++;
 			}
@@ -466,7 +511,7 @@ DWORD WINAPI AAExample::Construcao(LPVOID param)
 				pylon++;
 				ger_producao.push_back(UnitTypes::Protoss_Pylon);
 			}
-			if (workers >= 9 && gateways < 2 && gateway == 0)
+			if (workers >= 9 && gateways < 2 && gateway <= 1)
 			{
 				
 				UnitType gatewayType = UnitTypes::Protoss_Gateway;
@@ -513,9 +558,18 @@ DWORD WINAPI AAExample::Building_Pylon(LPVOID param)
 			ghMutex,    // handle to mutex
 			100);  // time-out interval
 
+		if (GameOver || unit == NULL || !unit->exists())  {
+			ReleaseMutex(ghMutex);
+			return 0; // end thread
+		}
+
 		if (unit->isCompleted())
 		{
 			pylon--;
+			if (!ReleaseMutex(ghMutex))
+			{
+				// Handle error.
+			}
 			break;
 		}
 
@@ -527,10 +581,10 @@ DWORD WINAPI AAExample::Building_Pylon(LPVOID param)
 		Sleep(20);
 	}
 
-	if (!ReleaseMutex(ghMutex))
+	/*if (!ReleaseMutex(ghMutex))
 	{
 		// Handle error.
-	}
+	}*/
 
 	return dwWaitResult;
 }
@@ -546,9 +600,18 @@ DWORD WINAPI AAExample::Building_Gateway(LPVOID param)
 			ghMutex,    // handle to mutex
 			100);  // time-out interval
 
+		if (GameOver || unit == NULL || !unit->exists())  {
+			ReleaseMutex(ghMutex);
+			return 0; // end thread
+		}
+
 		if (unit->isCompleted())
 		{
 			gateway--;
+			if (!ReleaseMutex(ghMutex))
+			{
+				// Handle error.
+			}
 			break;
 		}
 
@@ -560,10 +623,10 @@ DWORD WINAPI AAExample::Building_Gateway(LPVOID param)
 		Sleep(20);
 	}
 
-	if (!ReleaseMutex(ghMutex))
+	/*if (!ReleaseMutex(ghMutex))
 	{
 		// Handle error.
-	}
+	}*/
 
 	return dwWaitResult;
 }
@@ -572,6 +635,7 @@ DWORD WINAPI AAExample::thisShouldBeAClassButImTooLazyToDoIt_Worker(LPVOID param
 
 	BWAPI::Unit unit = static_cast<BWAPI::Unit>(param);
 	DWORD dwWaitResult;
+	bool constructing = true;
 
 	while (true){
 
@@ -589,6 +653,13 @@ DWORD WINAPI AAExample::thisShouldBeAClassButImTooLazyToDoIt_Worker(LPVOID param
 			ReleaseMutex(ghMutex);
 			Sleep(500);
 			continue;
+		}
+
+		if (constructing)
+		{
+			workers++;
+			probe--;
+			constructing = false;
 		}
 
 		if (dwWaitResult == WAIT_OBJECT_0 || dwWaitResult == WAIT_ABANDONED) //RAII
