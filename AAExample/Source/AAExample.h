@@ -33,6 +33,8 @@ public:
 	static DWORD WINAPI Gerenciador_Producao(LPVOID param);
 	static DWORD WINAPI Gerenciador_Trabalhador(LPVOID param);
 	static DWORD WINAPI Produtor(LPVOID param);
+	static DWORD WINAPI Militar(LPVOID param);
+	static DWORD WINAPI Estrategico(LPVOID param);
 
 	static DWORD WINAPI Building_Pylon(LPVOID param);
 	static DWORD WINAPI Building_Gateway(LPVOID param);

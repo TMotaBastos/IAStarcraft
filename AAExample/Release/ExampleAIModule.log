@@ -1,0 +1,19 @@
+﻿Build started 02/07/2017 02:06:46.
+     1>Project "C:\Users\hosqu\Downloads\Starcraft\Starcraft\AAExample\AAExample\ExampleAIModule.vcxproj" on node 2 (Build target(s)).
+     1>ClCompile:
+         E:\Program Files\Microsoft Visual Studio 2013\VC\bin\CL.exe /c /I"C:\Program Files (x86)\BWAPI\include" /Zi /nologo /W3 /WX- /MP /O2 /Oi /Oy- /GL /D NOMINMAX /D WIN32 /D NDEBUG /D _WINDOWS /D _USRDLL /D EXAMPLEAIMODULE_EXPORTS /D _WINDLL /Gm- /EHsc /MD /GS /Gy /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Release\\" /Fd"Release\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt Source\Dll.cpp Source\AAExample.cpp
+         Dll.cpp
+         AAExample.cpp
+     1>Source\AAExample.cpp(436): warning C4018: '<' : signed/unsigned mismatch
+       Link:
+         E:\Program Files\Microsoft Visual Studio 2013\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\hosqu\Downloads\Starcraft\Starcraft\AAExample\..\bwapi-data\AAExample.dll" /INCREMENTAL:NO /NOLOGO "C:\Program Files (x86)\BWAPI\lib\BWAPI.lib" kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\Users\hosqu\Downloads\Starcraft\Starcraft\AAExample\..\bwapi-data\AAExample.pdb" /SUBSYSTEM:WINDOWS /OPT:REF /OPT:ICF /LTCG /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"Release\AAExample.lib" /MACHINE:X86 /SAFESEH /DLL Release\Dll.obj
+         Release\AAExample.obj
+            Creating library Release\AAExample.lib and object Release\AAExample.exp
+         Generating code
+         Finished generating code
+         ExampleAIModule.vcxproj -> C:\Users\hosqu\Downloads\Starcraft\Starcraft\AAExample\..\bwapi-data\AAExample.dll
+     1>Done Building Project "C:\Users\hosqu\Downloads\Starcraft\Starcraft\AAExample\AAExample\ExampleAIModule.vcxproj" (Build target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:07.52
