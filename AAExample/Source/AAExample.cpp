@@ -1,6 +1,7 @@
 #include "AAExample.h"
 #include <iostream>
 #include <Windows.h>
+#include <cmath>
 
 using namespace BWAPI;
 using namespace Filter;
@@ -8,6 +9,12 @@ using namespace std;
 
 static int ZEALOT_RUSH = 0;
 static int DRAGOON_MODE = 1;
+
+static int SCOUT = 10;
+static int BUILDING = 11;
+static int COLLECTING_MINERAL = 12;
+static int COLLECTING_GAS = 13;
+static int IDLE = 14;
 
 int mode;
 
@@ -24,6 +31,12 @@ int zealot;
 int dragoon;
 int gateway;
 int pylon;
+map<int, int> trabalhadores;
+set< pair< int, pair<TilePosition, UnitType> > > workers_commands;
+int coletandoGas;
+int scouteando;
+int construindo;
+vector< pair<TilePosition, UnitType> > build_list;
 
 int lastChecked;
 bool vouConstruir;
@@ -46,6 +59,9 @@ void AAExample::onStart()
 	mode = ZEALOT_RUSH;
 	lastChecked = 0;
 	vouConstruir = false;
+	coletandoGas = 0;
+	scouteando = 0;
+	construindo = 0;
 
 	// Create a mutex with no initial owner
 	ghMutex = CreateMutex(
@@ -198,6 +214,9 @@ void AAExample::onUnitDestroy(BWAPI::Unit unit)
 {
 	if (unit->getType().isWorker())
 	{
+		map<int, int>::iterator it = trabalhadores.find(unit->getID());
+		if (it != trabalhadores.end())
+			trabalhadores.erase(it);
 		Broodwar->sendText("Morreu!");
 	}
 	else if (unit->getType() == UnitTypes::Protoss_Gateway)
@@ -320,7 +339,7 @@ DWORD WINAPI AAExample::Produtor(LPVOID param)
 					//else
 					else if ((*it).second == UnitTypes::Protoss_Assimilator || (*it).second == UnitTypes::Protoss_Gateway || (*it).second == UnitTypes::Protoss_Pylon || (*it).second == UnitTypes::Protoss_Cybernetics_Core)
 					{
-						//Broodwar->sendText("Tamanho da lista = %d", lista_producao.size());
+						/*//Broodwar->sendText("Tamanho da lista = %d", lista_producao.size());
 						for (std::list<Unit>::const_iterator i = Broodwar->self()->getUnits().begin(); i != Broodwar->self()->getUnits().end(); i++)
 						{
 							//if ((*i)->getType() == (*it).second.whatBuilds().first)
@@ -334,7 +353,7 @@ DWORD WINAPI AAExample::Produtor(LPVOID param)
 								TilePosition targetBuildLocation = Broodwar->getBuildLocation((*it).second, (*i)->getTilePosition());
 								//if (targetBuildLocation)
 								//{
-									/*if (*/(*i)->build((*it).second, targetBuildLocation);//)
+									*//*if (*//*(*i)->build((*it).second, targetBuildLocation);//)
 								Error lastErr = Broodwar->getLastError();
 								if (lastErr == Errors::None)
 								{
@@ -351,7 +370,13 @@ DWORD WINAPI AAExample::Produtor(LPVOID param)
 						{
 							++it;
 						}
-						entrou = false;
+						entrou = false;*/
+						vouConstruir = true;
+						TilePosition targetBuildLocation;
+						if (ref_pylon) targetBuildLocation = Broodwar->getBuildLocation((*it).second, ref_pylon->getTilePosition());
+						else targetBuildLocation = Broodwar->getBuildLocation((*it).second, ref_base->getTilePosition());
+						workers_commands.insert(make_pair(BUILDING, make_pair(targetBuildLocation, (*it).second)));
+						it = lista_producao.erase(it);
 						break;
 					}
 				}
@@ -395,12 +420,68 @@ DWORD WINAPI AAExample::Gerenciador_Trabalhador(LPVOID param)
 		if (dwWaitResult == WAIT_OBJECT_0 || dwWaitResult == WAIT_ABANDONED)
 		{
 
+			for (set< pair<int, pair<TilePosition, UnitType> > >::const_iterator it = workers_commands.begin(); it != workers_commands.end();)
+			{
+				if ((*it).first == SCOUT)
+				{
+					
+				}
+				else if ((*it).first == BUILDING)
+				{
+					//build_list.push_back((*it).second);
+					if (construindo == 0)
+					{
+						Position posBuilding = (Position) (*it).second.first;
+						Position posWorker;
+						Unit closerWorker;
+						double minDistance = 999999999;
+						double distance;
+						for (std::list<Unit>::const_iterator i = Broodwar->self()->getUnits().begin(); i != Broodwar->self()->getUnits().end(); i++)
+						{
+							if ((*i)->getType().isWorker() == true && ((*i)->isGatheringMinerals() || (*i)->isIdle()))
+							{
+								posWorker = (*i)->getPosition();
+								distance = sqrt(pow((posBuilding.x - posWorker.x), 2) + pow((posBuilding.y - posWorker.y), 2));
+								if (distance < minDistance)
+								{
+									Broodwar->sendText("Achou um trabalhador topzera");
+									minDistance = distance;
+									closerWorker = (*i);
+								}
+							}
+						}
+						construindo++;
+						build_list.push_back(make_pair(Broodwar->getBuildLocation((*it).second.second, closerWorker->getTilePosition()), (*it).second.second));
+						trabalhadores[closerWorker->getID()] = BUILDING;
+					}
+					it = workers_commands.erase(it);
+				}
+			}
+
+			for (std::list<Unit>::const_iterator i = Broodwar->self()->getUnits().begin(); i != Broodwar->self()->getUnits().end(); i++)
+			{
+				if ((*i)->getType().isWorker() == true)
+				{
+					if (mode == DRAGOON_MODE && coletandoGas < 2)
+					{
+						//coletar gas
+						coletandoGas++;
+						trabalhadores[(*i)->getID()] = COLLECTING_GAS;
+					}
+					else if ((*i)->isIdle() == true)
+					{
+						//coletar minerio
+						trabalhadores[(*i)->getID()] = COLLECTING_MINERAL;
+					}
+				}
+			}
+
 			if (!ReleaseMutex(ghMutex))
 			{
 				// Handle error.
 			}
 		}
-		Sleep(20);
+		Sleep(10);
 	}
 }
 
@@ -657,6 +738,7 @@ DWORD WINAPI AAExample::thisShouldBeAClassButImTooLazyToDoIt_Worker(LPVOID param
 
 		if (constructing)
 		{
+			trabalhadores[unit->getID()] = IDLE;
 			workers++;
 			probe--;
 			constructing = false;
@@ -665,7 +747,7 @@ DWORD WINAPI AAExample::thisShouldBeAClassButImTooLazyToDoIt_Worker(LPVOID param
 		if (dwWaitResult == WAIT_OBJECT_0 || dwWaitResult == WAIT_ABANDONED) //RAII
 		{
 			// if our worker is idle
-			if (unit->isIdle())
+			/*if (unit->isIdle())
 			{
 				// Order workers carrying a resource to return them to the center,
 				// otherwise find a mineral patch to harvest.
@@ -686,6 +768,94 @@ DWORD WINAPI AAExample::thisShouldBeAClassButImTooLazyToDoIt_Worker(LPVOID param
 
 				} // closure: has no powerup
 			} // closure: if idle
+			*/
+
+			map<int, int>::const_iterator it = trabalhadores.find(unit->getID());
+			
+			if (unit->isIdle())
+			{
+				if (it->second == COLLECTING_MINERAL)
+				{
+					if (unit->isCarryingGas() || unit->isCarryingMinerals())
+					{
+						unit->returnCargo();
+					}
+					else if (!unit->getPowerUp())  // The worker cannot harvest anything if it
+					{                             // is carrying a powerup such as a flag
+						// Harvest from the nearest mineral patch or gas refinery
+						BWAPI::Unit tempu = unit->getClosestUnit(BWAPI::Filter::IsMineralField);
+						if (tempu != NULL && !unit->gather(tempu))
+						{
+							// If the call fails, then print the last error message
+							// Broodwar << Broodwar->getLastError() << std::endl;
+						}
+
+					}
+				}
+				else if (it->second == COLLECTING_GAS)
+				{
+					if (unit->isCarryingGas() || unit->isCarryingMinerals())
+					{
+						unit->returnCargo();
+					}
+					else if (!unit->getPowerUp())  // The worker cannot harvest anything if it
+					{                             // is carrying a powerup such as a flag
+						// Harvest from the nearest mineral patch or gas refinery
+						BWAPI::Unit tempu = unit->getClosestUnit(BWAPI::Filter::IsRefinery);
+						if (tempu != NULL && !unit->gather(tempu))
+						{
+							// If the call fails, then print the last error message
+							// Broodwar << Broodwar->getLastError() << std::endl;
+						}
+
+					}
+				}
+				else if (it->second == BUILDING)
+				{
+					Broodwar->sendText("ta entrando aqui?");
+					//construindo--
+					if (build_list.empty())
+						trabalhadores[unit->getID()] = IDLE;
+
+					pair<TilePosition, UnitType> bl = build_list.back();
+					unit->build(bl.second, bl.first);
+					Error lastErr = Broodwar->getLastError();
+					if (lastErr == Errors::None)
+					{
+						build_list.pop_back();
+					}
+				}
+				//falta o resto ainda
+				else
+				{
+					trabalhadores[unit->getID()] = IDLE;
+				}
+			}
+			else if (it->second == BUILDING)
+			{
+				//Broodwar->sendText("ta entrando aqui 2?");
+				//construindo--
+				if (build_list.empty())
+				{
+					//construindo--;
+					trabalhadores[unit->getID()] = IDLE;
+				}
+				else
+				{
+					//Broodwar->sendText("construindo like a boss");
+					pair<TilePosition, UnitType> bl = build_list.back();
+					unit->build(bl.second, bl.first);
+					Error lastErr = Broodwar->getLastError();
+					if (lastErr == Errors::None)
+					{
+						build_list.pop_back();
+						//trabalhadores[unit->getID()] = IDLE;
+						//construindo--;
+					}
+					else if (lastErr == Errors::Invalid_Tile_Position || lastErr == Errors::Unreachable_Location || lastErr == Errors::Unbuildable_Location || lastErr == Errors::Insufficient_Space)
+						Broodwar->sendText("bugou ne danado");
+				}
+			}
 
 			if (!ReleaseMutex(ghMutex))
 			{
