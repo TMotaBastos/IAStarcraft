@@ -38,4 +38,6 @@ public:
 
 	static DWORD WINAPI Building_Pylon(LPVOID param);
 	static DWORD WINAPI Building_Gateway(LPVOID param);
+
+	static DWORD WINAPI Zealot(LPVOID param);
 };
